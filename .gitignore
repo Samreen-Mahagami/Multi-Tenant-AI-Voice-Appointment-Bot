@@ -62,5 +62,8 @@ venv.bak/
 *.tmp
 *.temp
 
+# Personal learning files (local only)
+MY_LEARNING_SUMMARY.md
+
 # Documentation (exclude detailed implementation guide)
 docs/IMPLEMENTATION_GUIDE.md
