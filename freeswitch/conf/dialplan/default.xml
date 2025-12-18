@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Multi-Tenant AI Voice Appointment Bot - FreeSWITCH Dialplan
+  Routes incoming calls based on DID to appropriate clinic
+-->
+<include>
+  <context name="public">
+    
+    <!-- Downtown Medical Center - DID 1001 -->
+    <extension name="downtown_medical">
+      <condition field="destination_number" expression="^(1001)$">
+        <action application="set" data="tenant_did=1001"/>
+        <action application="set" data="tenant_name=downtown_medical"/>
+        <action application="set" data="clinic_name=Downtown Medical Center"/>
+        <action application="set" data="greeting=Hello, thank you for calling Downtown Medical Center. How can I help you today?"/>
+        <action application="set" data="polly_voice=Joanna"/>
+        <action application="answer"/>
+        <action application="lua" data="bedrock_agent_handler.lua"/>
+      </condition>
+    </extension>
+
+    <!-- Westside Family Practice - DID 1002 -->
+    <extension name="westside_family">
+      <condition field="destination_number" expression="^(1002)$">
+        <action application="set" data="tenant_did=1002"/>
+        <action application="set" data="tenant_name=westside_family"/>
+        <action application="set" data="clinic_name=Westside Family Practice"/>
+        <action application="set" data="greeting=Hi there! You've reached Westside Family Practice. How may I assist you today?"/>
+        <action application="set" data="polly_voice=Matthew"/>
+        <action application="answer"/>
+        <action application="lua" data="bedrock_agent_handler.lua"/>
+      </condition>
+    </extension>
+
+    <!-- Pediatric Care Clinic - DID 1003 -->
+    <extension name="pediatric_care">
+      <condition field="destination_number" expression="^(1003)$">
+        <action application="set" data="tenant_did=1003"/>
+        <action application="set" data="tenant_name=pediatric_care"/>
+        <action application="set" data="clinic_name=Pediatric Care Clinic"/>
+        <action application="set" data="greeting=Welcome to Pediatric Care Clinic! We're here to help with your child's health needs."/>
+        <action application="set" data="polly_voice=Salli"/>
+        <action application="answer"/>
+        <action application="lua" data="bedrock_agent_handler.lua"/>
+      </condition>
+    </extension>
+
+    <!-- Fallback for unknown DIDs -->
+    <extension name="unknown_did">
+      <condition field="destination_number" expression="^(.*)$">
+        <action application="answer"/>
+        <action application="speak" data="I'm sorry, but the number you have dialed is not in service. Please check the number and try again."/>
+        <action application="sleep" data="2000"/>
+        <action application="hangup"/>
+      </condition>
+    </extension>
+
+  </context>
+</include>

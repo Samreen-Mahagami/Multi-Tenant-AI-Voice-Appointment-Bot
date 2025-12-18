@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Multi-Tenant AI Voice Appointment Bot - FreeSWITCH SIP Profile
+  External SIP profile for handling incoming calls from SIP trunk providers
+-->
+<profile name="external">
+  
+  <!-- SIP Gateways for incoming calls -->
+  <gateways>
+    <!-- Example SIP trunk configuration -->
+    <gateway name="clinic_sip_trunk">
+      <param name="username" value="${sip_trunk_username}"/>
+      <param name="password" value="${sip_trunk_password}"/>
+      <param name="realm" value="${sip_trunk_realm}"/>
+      <param name="proxy" value="${sip_trunk_proxy}"/>
+      <param name="register" value="true"/>
+      <param name="caller-id-in-from" value="true"/>
+      <param name="extension-in-contact" value="true"/>
+    </gateway>
+  </gateways>
+
+  <!-- SIP Profile Settings -->
+  <settings>
+    <!-- Network Configuration -->
+    <param name="debug" value="0"/>
+    <param name="sip-trace" value="no"/>
+    <param name="sip-capture" value="no"/>
+    <param name="rfc2833-pt" value="101"/>
+    <param name="sip-port" value="5080"/>
+    <param name="dialplan" value="XML"/>
+    <param name="context" value="public"/>
+    <param name="dtmf-duration" value="2000"/>
+    <param name="inbound-codec-prefs" value="OPUS,G722,PCMU,PCMA,GSM"/>
+    <param name="outbound-codec-prefs" value="OPUS,G722,PCMU,PCMA,GSM"/>
+    <param name="hold-music" value="$${hold_music}"/>
+    <param name="rtp-timer-name" value="soft"/>
+    
+    <!-- IP and Port Configuration -->
+    <param name="rtp-ip" value="$${local_ip_v4}"/>
+    <param name="sip-ip" value="$${local_ip_v4}"/>
+    <param name="ext-rtp-ip" value="auto-nat"/>
+    <param name="ext-sip-ip" value="auto-nat"/>
+    <param name="rtp-timeout-sec" value="300"/>
+    <param name="rtp-hold-timeout-sec" value="1800"/>
+    
+    <!-- Authentication and Security -->
+    <param name="auth-calls" value="false"/>
+    <param name="auth-all-packets" value="false"/>
+    <param name="accept-blind-auth" value="true"/>
+    <param name="accept-blind-reg" value="false"/>
+    
+    <!-- NAT Handling -->
+    <param name="NDLB-received-in-nat-reg-contact" value="true"/>
+    <param name="NDLB-force-rport" value="true"/>
+    <param name="NDLB-broken-auth-hash" value="true"/>
+    
+    <!-- Session Management -->
+    <param name="nonce-ttl" value="60"/>
+    <param name="auth-calls" value="false"/>
+    <param name="inbound-reg-force-matching-username" value="true"/>
+    <param name="challenge-realm" value="auto_from"/>
+    
+    <!-- Media Handling -->
+    <param name="media-option" value="resume-media-on-hold"/>
+    <param name="inbound-late-negotiation" value="true"/>
+    <param name="inbound-zrtp-passthru" value="true"/>
+    
+    <!-- Call Limits and Timeouts -->
+    <param name="max-proceeding" value="1000"/>
+    <param name="session-timeout" value="1800"/>
+    <param name="multiple-registrations" value="contact"/>
+    
+    <!-- Logging and Monitoring -->
+    <param name="log-auth-failures" value="true"/>
+    <param name="log-level" value="info"/>
+    
+    <!-- Custom Headers for Clinic Identification -->
+    <param name="pass-callee-id" value="false"/>
+    <param name="caller-id-type" value="rpid"/>
+    
+  </settings>
+</profile>

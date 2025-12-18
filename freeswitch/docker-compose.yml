@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  freeswitch:
+    image: signalwire/freeswitch:latest
+    container_name: clinic-voice-bot-freeswitch
+    restart: unless-stopped
+    
+    # Network configuration
+    network_mode: host
+    
+    # Port mappings (when not using host networking)
+    # ports:
+    #   - "5060:5060/udp"    # SIP signaling
+    #   - "5080:5080/udp"    # External SIP profile
+    #   - "8021:8021/tcp"    # Event Socket
+    #   - "16384-32768:16384-32768/udp"  # RTP media ports
+    
+    # Volume mounts
+    volumes:
+      - ./conf:/etc/freeswitch:ro
+      - ./scripts:/usr/share/freeswitch/scripts:ro
+      - ./logs:/var/log/freeswitch
+      - ./recordings:/var/lib/freeswitch/recordings
+      - ./sounds:/usr/share/freeswitch/sounds/custom
+      - freeswitch_data:/var/lib/freeswitch
+    
+    # Environment variables
+    environment:
+      - FREESWITCH_LOG_LEVEL=INFO
+      - FREESWITCH_RTP_START_PORT=16384
+      - FREESWITCH_RTP_END_PORT=32768
+      
+      # SIP Trunk Configuration (set these in .env file)
+      - SIP_TRUNK_USERNAME=${SIP_TRUNK_USERNAME:-clinic_user}
+      - SIP_TRUNK_PASSWORD=${SIP_TRUNK_PASSWORD:-clinic_pass}
+      - SIP_TRUNK_REALM=${SIP_TRUNK_REALM:-sip.provider.com}
+      - SIP_TRUNK_PROXY=${SIP_TRUNK_PROXY:-sip.provider.com}
+      
+      # AWS Configuration for Bedrock integration
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      
+      # Service URLs
+      - TENANT_CONFIG_URL=https://3ecpj0ss4j.execute-api.us-east-1.amazonaws.com/prod
+      - APPOINTMENT_SERVICE_URL=https://zkbwkpdpx9.execute-api.us-east-1.amazonaws.com/prod
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "fs_cli", "-x", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Optional: Redis for session storage and caching
+  redis:
+    image: redis:7-alpine
+    container_name: clinic-voice-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # Optional: Monitoring with Prometheus metrics (disabled - image not available)
+  # freeswitch-exporter:
+  #   image: znerol/freeswitch-exporter:latest
+  #   container_name: clinic-voice-bot-metrics
+  #   restart: unless-stopped
+  #   ports:
+  #     - "9282:9282"
+  #   environment:
+  #     - FREESWITCH_ESL_HOST=freeswitch
+  #     - FREESWITCH_ESL_PORT=8021
+  #     - FREESWITCH_ESL_PASSWORD=ClueCon
+  #   depends_on:
+  #     - freeswitch
+
+volumes:
+  freeswitch_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: clinic-voice-network
