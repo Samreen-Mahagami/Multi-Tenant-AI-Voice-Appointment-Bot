@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { BedrockAgentStack } from '../lib/bedrock-agent-stack';
 import { LambdaStack } from '../lib/lambda-stack';
 import { GoServicesStack } from '../lib/go-services-stack';
+import { VoiceStack } from '../lib/voice-stack';
 
 const app = new cdk.App();
 
@@ -29,7 +30,11 @@ const agentStack = new BedrockAgentStack(app, 'IvrBedrockAgentStack', {
   handoffHumanFunction: lambdaStack.handoffHumanFunction,
 });
 
+// Deploy Voice Processing Stack
+const voiceStack = new VoiceStack(app, 'IvrVoiceStack', { env });
+
 lambdaStack.addDependency(goServicesStack);
 agentStack.addDependency(lambdaStack);
+voiceStack.addDependency(agentStack);
 
 app.synth();
