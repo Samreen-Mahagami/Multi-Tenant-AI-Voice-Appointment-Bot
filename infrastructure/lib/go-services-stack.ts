@@ -17,7 +17,7 @@ export class GoServicesStack extends cdk.Stack {
     // ===========================================
     
     const tenantConfigFunction = new lambda.DockerImageFunction(this, 'TenantConfigFunction', {
-      code: lambda.DockerImageCode.fromImageAsset('./tenant-config-go', {
+      code: lambda.DockerImageCode.fromImageAsset('../tenant-config-go', {
         file: 'Dockerfile.lambda'
       }),
       functionName: 'ivr-tenant-config-service',
@@ -52,7 +52,7 @@ export class GoServicesStack extends cdk.Stack {
     // ===========================================
     
     const appointmentServiceFunction = new lambda.DockerImageFunction(this, 'AppointmentServiceFunction', {
-      code: lambda.DockerImageCode.fromImageAsset('./appointment-service-go', {
+      code: lambda.DockerImageCode.fromImageAsset('../appointment-service-go', {
         file: 'Dockerfile.lambda'
       }),
       functionName: 'ivr-appointment-service',

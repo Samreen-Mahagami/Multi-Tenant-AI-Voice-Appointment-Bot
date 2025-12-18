@@ -1,3 +1,5 @@
+// +build lambda
+
 package main
 
 import (
@@ -5,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -167,6 +168,6 @@ func errorResponse(statusCode int, message string) events.APIGatewayProxyRespons
 // Global tenant service instance
 var tenantService *TenantService
 
-func init() {
-	// Lambda will call lambdaHandler directly
+func main() {
+	lambda.Start(lambdaHandler)
 }
