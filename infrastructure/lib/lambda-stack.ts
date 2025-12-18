@@ -4,12 +4,16 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as path from 'path';
 
+interface LambdaStackProps extends cdk.StackProps {
+  appointmentServiceUrl?: string;
+}
+
 export class LambdaStack extends cdk.Stack {
   public readonly searchSlotsFunction: lambda.Function;
   public readonly confirmAppointmentFunction: lambda.Function;
   public readonly handoffHumanFunction: lambda.Function;
 
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: LambdaStackProps) {
     super(scope, id, props);
 
     // Common Lambda configuration
@@ -18,8 +22,7 @@ export class LambdaStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        APPOINTMENT_SERVICE_URL: 'http://appointment-service-go:7002',
-        TENANT_CONFIG_URL: 'http://tenant-config-go:7001',
+        APPOINTMENT_SERVICE_URL: props?.appointmentServiceUrl || 'http://localhost:7002',
       },
     };
 

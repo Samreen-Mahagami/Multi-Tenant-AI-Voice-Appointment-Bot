@@ -17,18 +17,13 @@ export class GoServicesStack extends cdk.Stack {
     // ===========================================
     
     const tenantConfigFunction = new lambda.DockerImageFunction(this, 'TenantConfigFunction', {
-      code: lambda.DockerImageCode.fromImageAsset('../tenant-config-go', {
-        file: 'Dockerfile.lambda',
-        cmd: ['index.handler']
+      code: lambda.DockerImageCode.fromImageAsset('./tenant-config-go', {
+        file: 'Dockerfile.lambda'
       }),
       functionName: 'ivr-tenant-config-service',
       description: 'Multi-tenant configuration service for IVR system',
       timeout: cdk.Duration.seconds(30),
       memorySize: 512,
-      environment: {
-        CONFIG_PATH: '/var/task/tenants.yaml',
-        AWS_LAMBDA_EXEC_WRAPPER: '/opt/bootstrap'
-      },
       logRetention: logs.RetentionDays.ONE_WEEK,
     });
 
@@ -57,9 +52,8 @@ export class GoServicesStack extends cdk.Stack {
     // ===========================================
     
     const appointmentServiceFunction = new lambda.DockerImageFunction(this, 'AppointmentServiceFunction', {
-      code: lambda.DockerImageCode.fromImageAsset('../appointment-service-go', {
-        file: 'Dockerfile.lambda',
-        cmd: ['index.handler']
+      code: lambda.DockerImageCode.fromImageAsset('./appointment-service-go', {
+        file: 'Dockerfile.lambda'
       }),
       functionName: 'ivr-appointment-service',
       description: 'Appointment booking and slot management service',
