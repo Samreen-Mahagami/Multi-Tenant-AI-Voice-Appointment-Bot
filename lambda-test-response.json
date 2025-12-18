@@ -1,0 +1,1 @@
+{"messageVersion": "1.0", "response": {"actionGroup": "", "apiPath": "", "httpMethod": "POST", "httpStatusCode": 200, "responseBody": {"application/json": {"body": "{\"slots\": [], \"message\": \"No available slots found for the requested time. Please try a different date or time.\"}"}}}}
