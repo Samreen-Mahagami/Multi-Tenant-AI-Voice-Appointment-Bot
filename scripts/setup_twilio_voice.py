@@ -166,7 +166,7 @@ class TwilioVoiceSetup:
         
         print("\n🔧 **TROUBLESHOOTING**:")
         print(f"   - Check Lambda logs: {self.webhook_function_name}")
-        print(f"   - Check voice processor logs: {self.voice_function_name}")
+        print("   - Check voice processor logs: IvrVoiceStack-VoiceProcessorFunction11F26011-trz1dxgnXLEW")
         print("   - Verify webhook URL in Twilio console")
         
         return True
