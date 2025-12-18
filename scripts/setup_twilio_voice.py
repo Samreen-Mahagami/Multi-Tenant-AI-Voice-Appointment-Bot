@@ -1,224 +1,54 @@
 #!/usr/bin/env python3
 """
 Setup Live Voice Testing with Twilio
-Creates a real phone number you can call to test the voice bot
+Creates API Gateway for Twilio webhooks using existing Lambda function
 Works with any AWS account (including AISPL accounts)
 """
 
 import boto3
 import json
 import requests
-import base64
 from datetime import datetime
 
 class TwilioVoiceSetup:
     def __init__(self):
         self.lambda_client = boto3.client('lambda', region_name='us-east-1')
         self.apigateway = boto3.client('apigateway', region_name='us-east-1')
-        self.iam = boto3.client('iam', region_name='us-east-1')
         
-        # Configuration
-        self.voice_function_name = 'IvrVoiceStack-VoiceProcessorFunction11F26011-trz1dxgnXLEW'
-        self.webhook_function_name = 'twilio-voice-webhook'
-        
-    def create_twilio_webhook_lambda(self):
-        """Create Lambda function to handle Twilio webhooks"""
-        print("🔗 Creating Twilio webhook Lambda function...")
-        
-        webhook_code = '''
-import json
-import boto3
-import base64
-import urllib.parse
-from xml.sax.saxutils import escape
-
-def lambda_handler(event, context):
-    """Handle Twilio webhook and bridge to voice processor"""
+        # Find the Twilio webhook function (deployed via CDK)
+        self.webhook_function_name = None
+        self.find_webhook_function()
     
-    # Parse Twilio webhook data
-    if event.get('body'):
-        # Parse form data from Twilio
-        body = urllib.parse.parse_qs(event['body'])
-        
-        # Extract call information
-        call_sid = body.get('CallSid', [''])[0]
-        from_number = body.get('From', [''])[0]
-        to_number = body.get('To', [''])[0]
-        speech_result = body.get('SpeechResult', ['Hello'])[0]
-        
-        # Determine DID from called number (last 4 digits)
-        did = '1001'  # Default
-        if '1002' in to_number:
-            did = '1002'
-        elif '1003' in to_number:
-            did = '1003'
-        
-        print(f"Twilio call: {call_sid}, DID: {did}, Speech: {speech_result}")
-        
-        # Call voice processor Lambda
-        lambda_client = boto3.client('lambda')
-        
-        voice_payload = {
-            'text': speech_result,
-            'did': did,
-            'session_id': f'twilio-{call_sid}'
-        }
-        
+    def find_webhook_function(self):
+        """Find the Twilio webhook function deployed via CDK"""
         try:
-            response = lambda_client.invoke(
-                FunctionName='IvrVoiceStack-VoiceProcessorFunction11F26011-trz1dxgnXLEW',
-                Payload=json.dumps(voice_payload)
-            )
+            # List functions to find the Twilio webhook function
+            paginator = self.lambda_client.get_paginator('list_functions')
             
-            result = json.loads(response['Payload'].read())
+            for page in paginator.paginate():
+                for function in page['Functions']:
+                    if 'TwilioWebhook' in function['FunctionName']:
+                        self.webhook_function_name = function['FunctionName']
+                        print(f"✅ Found Twilio webhook function: {self.webhook_function_name}")
+                        return
             
-            if result['statusCode'] == 200:
-                body_data = json.loads(result['body'])
-                agent_response = body_data['agent_response']
-            else:
-                agent_response = "I'm sorry, I'm having technical difficulties."
-                
-        except Exception as e:
-            print(f"Error calling voice processor: {e}")
-            agent_response = "I'm sorry, there was an error processing your request."
-        
-        # Create TwiML response
-        twiml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say voice="alice">{}</Say>
-    <Gather input="speech" action="/voice" method="POST" speechTimeout="5">
-        <Say voice="alice">Please continue speaking, or hang up when finished.</Say>
-    </Gather>
-    <Say voice="alice">Thank you for calling. Goodbye!</Say>
-</Response>""".format(escape(agent_response))
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'text/xml'
-            },
-            'body': twiml
-        }
-    
-    # Initial call - just start the conversation
-    twiml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say voice="alice">Hello! Welcome to our AI voice appointment bot. Please tell me how I can help you.</Say>
-    <Gather input="speech" action="/voice" method="POST" speechTimeout="5">
-        <Say voice="alice">Please speak after the beep.</Say>
-    </Gather>
-    <Say voice="alice">I didn't hear anything. Please try calling again.</Say>
-</Response>"""
-    
-    return {
-        'statusCode': 200,
-        'headers': {
-            'Content-Type': 'text/xml'
-        },
-        'body': twiml
-    }
-'''
-        
-        try:
-            # Create IAM role for webhook Lambda
-            role_arn = self.create_webhook_lambda_role()
-            
-            # Create the Lambda function
-            response = self.lambda_client.create_function(
-                FunctionName=self.webhook_function_name,
-                Runtime='python3.9',
-                Role=role_arn,
-                Handler='index.lambda_handler',
-                Code={'ZipFile': webhook_code.encode()},
-                Description='Twilio webhook handler for voice bot',
-                Timeout=30,
-                Environment={
-                    'Variables': {
-                        'VOICE_FUNCTION_NAME': self.voice_function_name
-                    }
-                }
-            )
-            
-            function_arn = response['FunctionArn']
-            print(f"✅ Created webhook Lambda: {function_arn}")
-            return function_arn
+            print("❌ Twilio webhook function not found. Please deploy the voice stack first:")
+            print("   cd infrastructure && cdk deploy IvrVoiceStack")
             
         except Exception as e:
-            if 'already exists' in str(e):
-                print("✅ Webhook Lambda already exists")
-                # Get existing function ARN
-                response = self.lambda_client.get_function(FunctionName=self.webhook_function_name)
-                return response['Configuration']['FunctionArn']
-            else:
-                print(f"❌ Failed to create webhook Lambda: {e}")
-                return None
+            print(f"❌ Error finding webhook function: {e}")
     
-    def create_webhook_lambda_role(self):
-        """Create IAM role for webhook Lambda"""
-        
-        trust_policy = {
-            "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Effect": "Allow",
-                    "Principal": {"Service": "lambda.amazonaws.com"},
-                    "Action": "sts:AssumeRole"
-                }
-            ]
-        }
-        
+    def get_webhook_function_arn(self):
+        """Get the ARN of the webhook function"""
+        if not self.webhook_function_name:
+            return None
+            
         try:
-            # Create role
-            response = self.iam.create_role(
-                RoleName='twilio-webhook-lambda-role',
-                AssumeRolePolicyDocument=json.dumps(trust_policy),
-                Description='Role for Twilio webhook Lambda function'
-            )
-            
-            role_arn = response['Role']['Arn']
-            
-            # Attach policies
-            policies = [
-                'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-            ]
-            
-            for policy in policies:
-                self.iam.attach_role_policy(
-                    RoleName='twilio-webhook-lambda-role',
-                    PolicyArn=policy
-                )
-            
-            # Add policy to invoke other Lambda functions
-            lambda_invoke_policy = {
-                "Version": "2012-10-17",
-                "Statement": [
-                    {
-                        "Effect": "Allow",
-                        "Action": "lambda:InvokeFunction",
-                        "Resource": "*"
-                    }
-                ]
-            }
-            
-            self.iam.put_role_policy(
-                RoleName='twilio-webhook-lambda-role',
-                PolicyName='LambdaInvokePolicy',
-                PolicyDocument=json.dumps(lambda_invoke_policy)
-            )
-            
-            # Wait for role to propagate
-            import time
-            time.sleep(10)
-            
-            return role_arn
-            
+            response = self.lambda_client.get_function(FunctionName=self.webhook_function_name)
+            return response['Configuration']['FunctionArn']
         except Exception as e:
-            if 'already exists' in str(e):
-                # Get existing role
-                response = self.iam.get_role(RoleName='twilio-webhook-lambda-role')
-                return response['Role']['Arn']
-            else:
-                raise e
+            print(f"❌ Error getting function ARN: {e}")
+            return None
     
     def create_api_gateway(self, lambda_arn):
         """Create API Gateway for Twilio webhooks"""
@@ -260,7 +90,6 @@ def lambda_handler(event, context):
             )
             
             # Set up Lambda integration
-            account_id = boto3.Session().get_credentials().access_key
             lambda_uri = f"arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/{lambda_arn}/invocations"
             
             self.apigateway.put_integration(
@@ -277,6 +106,10 @@ def lambda_handler(event, context):
                 restApiId=api_id,
                 stageName='prod'
             )
+            
+            # Get proper account ID
+            sts = boto3.client('sts')
+            account_id = sts.get_caller_identity()['Account']
             
             # Add Lambda permission for API Gateway
             self.lambda_client.add_permission(
@@ -346,8 +179,13 @@ def lambda_handler(event, context):
         print("This works with any AWS account (including AISPL accounts)")
         print("=" * 60)
         
-        # Step 1: Create webhook Lambda
-        lambda_arn = self.create_twilio_webhook_lambda()
+        # Step 1: Get webhook Lambda ARN
+        if not self.webhook_function_name:
+            print("❌ Please deploy the voice stack first:")
+            print("   cd infrastructure && cdk deploy IvrVoiceStack")
+            return False
+            
+        lambda_arn = self.get_webhook_function_arn()
         if not lambda_arn:
             return False
         

@@ -48,5 +48,32 @@ export class VoiceStack extends cdk.Stack {
       value: voiceProcessorFunction.functionName,
       description: 'Name of the voice processor Lambda function'
     });
+
+    // Twilio webhook Lambda function
+    const twilioWebhookFunction = new lambda.Function(this, 'TwilioWebhookFunction', {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: 'index.lambda_handler',
+      code: lambda.Code.fromAsset('../lambda/twilio-webhook'),
+      timeout: cdk.Duration.seconds(30),
+      memorySize: 256,
+      environment: {
+        VOICE_FUNCTION_NAME: voiceProcessorFunction.functionName
+      },
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    // Grant permission to invoke voice processor
+    voiceProcessorFunction.grantInvoke(twilioWebhookFunction);
+
+    // Output the Twilio webhook function details
+    new cdk.CfnOutput(this, 'TwilioWebhookFunctionArn', {
+      value: twilioWebhookFunction.functionArn,
+      description: 'ARN of the Twilio webhook Lambda function'
+    });
+
+    new cdk.CfnOutput(this, 'TwilioWebhookFunctionName', {
+      value: twilioWebhookFunction.functionName,
+      description: 'Name of the Twilio webhook Lambda function'
+    });
   }
 }
