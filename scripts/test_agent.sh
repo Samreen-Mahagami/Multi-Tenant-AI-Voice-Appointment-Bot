@@ -25,14 +25,14 @@ echo "📞 Test 1: Initial greeting"
 echo "----------------------------------------"
 SESSION_ID="test-greeting-$(date +%s)"
 
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "Hello" \
-  --output json)
+  /tmp/response.json
 
-echo "Response: $(echo $RESPONSE | jq -r '.completion')"
+echo "Response: $(cat /tmp/response.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 # Test 2: Booking flow
@@ -41,53 +41,53 @@ echo "----------------------------------------"
 SESSION_ID="booking-test-$(date +%s)"
 
 echo "Turn 1: Request appointment"
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "I want to book an appointment for tomorrow morning" \
-  --output json)
+  /tmp/response1.json
 
-echo "Agent: $(echo $RESPONSE | jq -r '.completion')"
+echo "Agent: $(cat /tmp/response1.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 sleep 2
 
 echo "Turn 2: Select slot"
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "The 9:30 AM slot please" \
-  --output json)
+  /tmp/response2.json
 
-echo "Agent: $(echo $RESPONSE | jq -r '.completion')"
+echo "Agent: $(cat /tmp/response2.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 sleep 2
 
 echo "Turn 3: Provide name"
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "My name is John Smith" \
-  --output json)
+  /tmp/response3.json
 
-echo "Agent: $(echo $RESPONSE | jq -r '.completion')"
+echo "Agent: $(cat /tmp/response3.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 sleep 2
 
 echo "Turn 4: Provide email"
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "john.smith@example.com" \
-  --output json)
+  /tmp/response4.json
 
-echo "Agent: $(echo $RESPONSE | jq -r '.completion')"
+echo "Agent: $(cat /tmp/response4.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 # Test 3: Human handoff
@@ -95,14 +95,14 @@ echo "🤝 Test 3: Human handoff"
 echo "----------------------------------------"
 SESSION_ID="handoff-test-$(date +%s)"
 
-RESPONSE=$(aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime invoke-agent \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "I want to speak to a human" \
-  --output json)
+  /tmp/response5.json
 
-echo "Agent: $(echo $RESPONSE | jq -r '.completion')"
+echo "Agent: $(cat /tmp/response5.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""
 
 echo "✅ All tests completed!"

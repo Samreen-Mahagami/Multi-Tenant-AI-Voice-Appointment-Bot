@@ -1,0 +1,16 @@
+{
+  "actionGroup": "AppointmentActions",
+  "apiPath": "/searchSlots",
+  "httpMethod": "POST",
+  "requestBody": {
+    "content": {
+      "application/json": {
+        "properties": [
+          {"name": "tenant_id", "value": "clinic_a"},
+          {"name": "date", "value": "tomorrow"},
+          {"name": "time_preference", "value": "morning"}
+        ]
+      }
+    }
+  }
+}
