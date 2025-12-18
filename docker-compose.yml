@@ -1,0 +1,88 @@
+version: "3.9"
+
+networks:
+  ivr-network:
+    driver: bridge
+
+services:
+  # ===========================================
+  # TENANT CONFIG SERVICE
+  # ===========================================
+  tenant-config-go:
+    build: ./tenant-config-go
+    container_name: tenant-config-go
+    networks:
+      - ivr-network
+    ports:
+      - "7001:7001"
+    volumes:
+      - ./tenant-config-go/tenants.yaml:/app/tenants.yaml:ro
+    environment:
+      - PORT=7001
+      - CONFIG_PATH=/app/tenants.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7001/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ===========================================
+  # APPOINTMENT SERVICE
+  # ===========================================
+  appointment-service-go:
+    build: ./appointment-service-go
+    container_name: appointment-service-go
+    networks:
+      - ivr-network
+    ports:
+      - "7002:7002"
+    environment:
+      - PORT=7002
+    depends_on:
+      tenant-config-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7002/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  # ===========================================
+  # FUTURE: MEDIA GATEWAY (Phase 3)
+  # ===========================================
+  # media-gateway-go:
+  #   build: ./media-gateway-go
+  #   container_name: media-gateway-go
+  #   networks:
+  #     - ivr-network
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - AWS_REGION=${AWS_REGION:-us-east-1}
+  #     - BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID}
+  #     - BEDROCK_AGENT_ALIAS_ID=${BEDROCK_AGENT_ALIAS_ID}
+  #     - TENANT_CONFIG_URL=http://tenant-config-go:7001
+  #     - APPOINTMENT_SERVICE_URL=http://appointment-service-go:7002
+  #   depends_on:
+  #     tenant-config-go:
+  #       condition: service_healthy
+  #     appointment-service-go:
+  #       condition: service_healthy
+
+  # ===========================================
+  # FUTURE: FREESWITCH (Phase 4)
+  # ===========================================
+  # freeswitch:
+  #   image: signalwire/freeswitch:latest
+  #   container_name: freeswitch
+  #   networks:
+  #     - ivr-network
+  #   ports:
+  #     - "5060:5060/udp"
+  #     - "5060:5060/tcp"
+  #     - "8021:8021/tcp"
+  #   depends_on:
+  #     media-gateway-go:
+  #       condition: service_healthy

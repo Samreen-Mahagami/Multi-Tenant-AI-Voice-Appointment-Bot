@@ -10,7 +10,7 @@ import urllib.error
 from datetime import datetime, timedelta
 from typing import Any
 
-APPOINTMENT_SERVICE_URL = os.environ.get('APPOINTMENT_SERVICE_URL', 'http://appointment-service-go:7002')
+APPOINTMENT_SERVICE_URL = os.environ.get('APPOINTMENT_SERVICE_URL', 'http://localhost:7002')
 
 
 def handler(event: dict, context: Any) -> dict:

@@ -1,0 +1,73 @@
+# Tenant Configuration - DID to Clinic Mapping
+tenants:
+  downtown_medical:
+    did: "1001"
+    name: "Downtown Medical Center"
+    display_name: "Downtown Medical Center"
+    greeting: "Hello, thank you for calling Downtown Medical Center. How can I help you today?"
+    polly_voice_id: "Joanna"
+    polly_engine: "neural"
+    business_hours: "09:00-17:00"
+    timezone: "America/New_York"
+    specialties:
+      - "Internal Medicine"
+      - "Cardiology"
+    doctors:
+      - name: "Dr. Sarah Smith"
+        specialty: "Internal Medicine"
+        id: "dr_smith"
+      - name: "Dr. Michael Johnson"
+        specialty: "Cardiology"
+        id: "dr_johnson"
+    contact:
+      phone: "+1-555-123-1001"
+      email: "appointments@downtownmedical.com"
+      address: "123 Main St, Downtown, NY 10001"
+
+  westside_family:
+    did: "1002"
+    name: "Westside Family Practice"
+    display_name: "Westside Family Practice"
+    greeting: "Hi there! You've reached Westside Family Practice. How may I assist you today?"
+    polly_voice_id: "Matthew"
+    polly_engine: "neural"
+    business_hours: "08:00-18:00"
+    timezone: "America/New_York"
+    specialties:
+      - "Family Medicine"
+      - "Pediatrics"
+    doctors:
+      - name: "Dr. Priya Patel"
+        specialty: "Family Medicine"
+        id: "dr_patel"
+      - name: "Dr. James Williams"
+        specialty: "Pediatrics"
+        id: "dr_williams"
+    contact:
+      phone: "+1-555-123-1002"
+      email: "info@westsidefamily.com"
+      address: "456 Oak Ave, Westside, NY 10002"
+
+  pediatric_care:
+    did: "1003"
+    name: "Pediatric Care Clinic"
+    display_name: "Pediatric Care Clinic"
+    greeting: "Welcome to Pediatric Care Clinic! We're here to help with your child's health needs."
+    polly_voice_id: "Salli"
+    polly_engine: "neural"
+    business_hours: "07:00-19:00"
+    timezone: "America/New_York"
+    specialties:
+      - "Pediatrics"
+      - "Child Psychology"
+    doctors:
+      - name: "Dr. Emily Brown"
+        specialty: "Pediatrics"
+        id: "dr_brown"
+      - name: "Dr. Robert Davis"
+        specialty: "Child Psychology"
+        id: "dr_davis"
+    contact:
+      phone: "+1-555-123-1003"
+      email: "care@pediatriccare.com"
+      address: "789 Pine St, Uptown, NY 10003"

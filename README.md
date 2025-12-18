@@ -1,6 +1,6 @@
-# Multi-Tenant AI Voice Appointment Bot
+# AI Voice Appointment Bot
 
-## DID-Based Intelligent Voice Assistant with Amazon Bedrock Agents
+## Intelligent Voice Assistant with Amazon Bedrock Agents
 
 **Technology Stack:**
 - **Telephony:** FreeSWITCH + mod_audio_stream
@@ -11,11 +11,11 @@
 - **Action Groups:** AWS Lambda (Python)
 - **Infrastructure:** AWS CDK (TypeScript) + Docker Compose (local services)
 
-**Scope:** Real-time call path with fully managed AI agent orchestration
+**Scope:** Real-time call path with fully managed AI agent orchestration for medical appointment booking
 
 ## Project Goal
 
-Build a production-quality AI voice receptionist demonstrating AWS-native AI orchestration:
+Build a production-quality AI voice receptionist for medical practices demonstrating AWS-native AI orchestration:
 
 ### Core Capabilities
 
@@ -70,9 +70,37 @@ Build a production-quality AI voice receptionist demonstrating AWS-native AI orc
 
 The system uses Amazon Bedrock Agents as the central orchestrator, eliminating the need for custom conversation management code. The agent automatically handles multi-turn conversations, maintains session state, and invokes Lambda action groups for appointment operations.
 
+## Example Conversation Flow
+
+```
+Caller: "Hi, I'd like to see a doctor"
+        ↓
+[Transcribe] → "Hi, I'd like to see a doctor"
+        ↓
+[Bedrock Agent] → Reasoning: User wants appointment, need to ask for date
+        ↓
+[Agent Response] → "I'd be happy to help you book an appointment. What day works best for you?"
+        ↓
+[Polly] → Audio playback
+
+Caller: "Tomorrow morning"
+        ↓
+[Transcribe] → "Tomorrow morning"
+        ↓
+[Bedrock Agent] → Reasoning: Have date preference, invoke search_slots action
+        ↓
+[Lambda: search_slots] → Returns available slots
+        ↓
+[Agent Response] → "I found slots at 9 AM, 9:30 AM, and 10 AM. Which works for you?"
+        ↓
+[Polly] → Audio playback
+
+... continues until booking complete ...
+```
+
 ## Documentation
 
-- [Setup Guide](docs/setup.md)
-- [Architecture Details](docs/architecture.md)
-- [Testing Guide](docs/testing.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [Conversation Flow Examples](CONVERSATION_FLOW_EXAMPLE.md)
+- [Quick Summary](docs/QUICK_SUMMARY.md)
+- [Architecture Details](docs/ARCHITECTURE.md)
+- [Implementation Guide](docs/IMPLEMENTATION_GUIDE.md)

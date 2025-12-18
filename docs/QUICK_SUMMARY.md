@@ -1,7 +1,7 @@
 # Quick Summary - What We Built
 
 ## 🎯 Project Goal
-Build an AI-powered voice receptionist that can answer phone calls and book medical appointments automatically.
+Build an AI-powered voice receptionist that can answer phone calls and book medical appointments automatically for a medical practice.
 
 ## ✅ Phase 1 Complete: AI Infrastructure
 
