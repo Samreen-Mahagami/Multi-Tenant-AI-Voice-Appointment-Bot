@@ -61,3 +61,6 @@ venv.bak/
 # Temporary files
 *.tmp
 *.temp
+
+# Documentation (exclude detailed implementation guide)
+docs/IMPLEMENTATION_GUIDE.md
