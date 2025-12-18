@@ -17,7 +17,7 @@
     "inlineSources": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
-    "outDir": "./dist",
+    "outDir": "./cdk.out",
     "rootDir": "./"
   },
   "exclude": ["node_modules", "cdk.out"]

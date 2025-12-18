@@ -13,15 +13,13 @@ export class LambdaStack extends cdk.Stack {
     super(scope, id, props);
 
     // Common Lambda configuration
-    const commonProps: Partial<lambda.FunctionProps> = {
+    const commonProps = {
       runtime: lambda.Runtime.PYTHON_3_11,
       timeout: cdk.Duration.seconds(30),
       memorySize: 256,
       environment: {
-        APPOINTMENT_SERVICE_URL: cdk.Fn.importValue('AppointmentServiceUrl') || 
-          'http://appointment-service-go:7002',
-        TENANT_CONFIG_URL: cdk.Fn.importValue('TenantConfigUrl') || 
-          'http://tenant-config-go:7001',
+        APPOINTMENT_SERVICE_URL: 'http://appointment-service-go:7002',
+        TENANT_CONFIG_URL: 'http://tenant-config-go:7001',
       },
     };
 
