@@ -25,12 +25,12 @@ echo "📞 Test 1: Initial greeting"
 echo "----------------------------------------"
 SESSION_ID="test-greeting-$(date +%s)"
 
-aws bedrock-agent-runtime invoke-agent \
+aws bedrock-agent-runtime create-invocation \
   --agent-id $BEDROCK_AGENT_ID \
   --agent-alias-id $BEDROCK_AGENT_ALIAS_ID \
   --session-id $SESSION_ID \
   --input-text "Hello" \
-  /tmp/response.json
+  --output json > /tmp/response.json
 
 echo "Response: $(cat /tmp/response.json | jq -r '.completion // .output.text // "No response found"')"
 echo ""

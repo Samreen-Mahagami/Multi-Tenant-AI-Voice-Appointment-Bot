@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Voice Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button { 
+            padding: 15px 25px; 
+            margin: 10px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        
+        .clinic-btn { background: #28a745; }
+        .clinic-btn:hover { background: #218838; }
+        .clinic-btn.selected { background: #17a2b8; }
+        
+        .record-btn { 
+            background: #dc3545; 
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .record-btn:hover { background: #c82333; }
+        .record-btn.recording { 
+            background: #fd7e14; 
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .status { 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        
+        .conversation { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            max-height: 300px; 
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+        
+        .message { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-radius: 6px;
+        }
+        .user-message { 
+            background: #e3f2fd; 
+            border-left: 4px solid #2196f3;
+        }
+        .bot-message { 
+            background: #f3e5f5; 
+            border-left: 4px solid #9c27b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Simple Voice Test</h1>
+        
+        <div id="status" class="status info">
+            <strong>Status:</strong> Select a hospital to start
+        </div>
+
+        <h3>🏥 Select Hospital:</h3>
+        <button class="clinic-btn" onclick="selectHospital('1001', 'Downtown Medical Center')" id="btn1001">
+            1001 - Downtown Medical Center
+        </button>
+        <button class="clinic-btn" onclick="selectHospital('1002', 'Westside Family Practice')" id="btn1002">
+            1002 - Westside Family Practice
+        </button>
+        <button class="clinic-btn" onclick="selectHospital('1003', 'Pediatric Care Clinic')" id="btn1003">
+            1003 - Pediatric Care Clinic
+        </button>
+
+        <button id="recordBtn" class="record-btn" onclick="toggleRecording()" disabled>
+            🎤 Click to Start Talking
+        </button>
+
+        <div class="conversation" id="conversation">
+            <div class="message bot-message">
+                <strong>🤖 AI Bot:</strong> Please select a hospital above to start!
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <p><strong>Selected Hospital:</strong> <span id="selectedHospital">None</span></p>
+            <p><strong>Connection Status:</strong> <span id="connectionStatus">Not connected</span></p>
+        </div>
+    </div>
+
+    <script>
+        let selectedDID = null;
+        let selectedHospitalName = null;
+        let websocket = null;
+        let recognition = null;
+        let isListening = false;
+
+        function log(message, type = 'bot') {
+            const conversation = document.getElementById('conversation');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'user' ? '👤' : '🤖';
+            const label = type === 'user' ? 'You' : 'AI Bot';
+            
+            messageDiv.innerHTML = `<strong>${icon} ${label}:</strong> ${message} <small style="color: #6c757d;">[${timestamp}]</small>`;
+            conversation.appendChild(messageDiv);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.innerHTML = `<strong>Status:</strong> ${message}`;
+        }
+
+        function selectHospital(did, hospitalName) {
+            console.log('Hospital selected:', did, hospitalName);
+            
+            // Clear previous selection
+            document.querySelectorAll('.clinic-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Mark as selected
+            document.getElementById('btn' + did).classList.add('selected');
+            
+            selectedDID = did;
+            selectedHospitalName = hospitalName;
+            
+            document.getElementById('selectedHospital').textContent = `${did} - ${hospitalName}`;
+            document.getElementById('recordBtn').disabled = false;
+            
+            // Connect to Media Gateway
+            connectToMediaGateway();
+            
+            log(`Connected to ${hospitalName}. You can now start talking!`);
+            updateStatus(`Connected to ${hospitalName} - Ready for voice input`, 'success');
+        }
+
+        function connectToMediaGateway() {
+            const callId = `call-${Date.now()}`;
+            const wsUrl = `ws://localhost:8080/ws/audio?callId=${callId}&did=${selectedDID}`;
+            
+            console.log('Connecting to:', wsUrl);
+            
+            try {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function() {
+                    console.log('WebSocket connected');
+                    document.getElementById('connectionStatus').textContent = 'Connected ✅';
+                    log('Connected to Media Gateway - Voice processing ready!');
+                };
+                
+                websocket.onmessage = function(event) {
+                    console.log('WebSocket message:', event.data);
+                    
+                    if (typeof event.data === 'string') {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'transcript') {
+                                log(`Transcribed: "${data.text}"`, 'user');
+                            } else if (data.type === 'response') {
+                                log(data.text);
+                                speakText(data.text);
+                            }
+                        } catch (e) {
+                            console.log('Non-JSON message:', event.data);
+                        }
+                    }
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    document.getElementById('connectionStatus').textContent = 'Error ❌';
+                    updateStatus('Connection error - check if Media Gateway is running', 'error');
+                };
+                
+                websocket.onclose = function() {
+                    console.log('WebSocket closed');
+                    document.getElementById('connectionStatus').textContent = 'Disconnected ❌';
+                    updateStatus('Disconnected from Media Gateway', 'warning');
+                };
+                
+            } catch (error) {
+                console.error('WebSocket connection failed:', error);
+                updateStatus('Failed to connect to Media Gateway', 'error');
+            }
+        }
+
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+            } else if ('SpeechRecognition' in window) {
+                recognition = new SpeechRecognition();
+            } else {
+                updateStatus('Speech recognition not supported in this browser', 'error');
+                return false;
+            }
+
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                isListening = true;
+                updateStatus('🎤 Listening... speak now!', 'warning');
+                document.getElementById('recordBtn').textContent = '🎤 Listening... (Click to Stop)';
+                document.getElementById('recordBtn').className = 'record-btn recording';
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                log(`You said: "${transcript}"`, 'user');
+                
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        type: 'transcript',
+                        text: transcript
+                    }));
+                    updateStatus('Processing your request...', 'info');
+                } else {
+                    updateStatus('Not connected to Media Gateway', 'error');
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                updateStatus(`Speech recognition error: ${event.error}`, 'error');
+                isListening = false;
+                resetRecordButton();
+            };
+
+            recognition.onend = function() {
+                isListening = false;
+                resetRecordButton();
+            };
+
+            return true;
+        }
+
+        function resetRecordButton() {
+            document.getElementById('recordBtn').textContent = '🎤 Click to Start Talking';
+            document.getElementById('recordBtn').className = 'record-btn';
+        }
+
+        function toggleRecording() {
+            if (!selectedDID) {
+                updateStatus('Please select a hospital first', 'warning');
+                return;
+            }
+
+            if (!recognition && !initSpeechRecognition()) {
+                return;
+            }
+
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
+            
+            utterance.onstart = function() {
+                updateStatus('🔊 AI is speaking...', 'info');
+            };
+            
+            utterance.onend = function() {
+                updateStatus('Ready for next voice input', 'success');
+            };
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // Initialize
+        updateStatus('Select a hospital to start voice testing', 'info');
+        log('🚀 Simple Voice Client ready. Click a hospital button above!');
+        
+        // Test button clicks
+        console.log('JavaScript loaded successfully');
+    </script>
+</body>
+</html>

@@ -131,9 +131,7 @@ func (ts *TenantService) handleResolveTenant(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(tenant)
 }
 
-func (ts *TenantService) handleGetTenant(w http.ResponseWriter, r *http.Request) {
-	// This will be implemented in main.go for HTTP server
-}
+// handleGetTenant is implemented in main.go for HTTP server
 
 func (ts *TenantService) handleListTenants(w http.ResponseWriter, r *http.Request) {
 	tenants := ts.GetAllTenants()

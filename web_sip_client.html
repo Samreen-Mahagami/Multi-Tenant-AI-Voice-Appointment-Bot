@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeSWITCH Voice Test Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/jssip@3.10.1/dist/jssip.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        .call-controls { margin: 20px 0; }
+        .extension-btn { background: #28a745; margin: 5px; }
+        .extension-btn:hover { background: #218838; }
+        .hangup-btn { background: #dc3545; }
+        .hangup-btn:hover { background: #c82333; }
+        .config { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        audio { width: 100%; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>🎯 FreeSWITCH Voice Test Client</h1>
+    
+    <div id="status" class="status info">
+        <strong>📞 Status:</strong> Initializing...
+    </div>
+
+    <div class="config">
+        <h3>SIP Configuration:</h3>
+        <p><strong>Server:</strong> localhost:5060</p>
+        <p><strong>Username:</strong> 1000</p>
+        <p><strong>Password:</strong> 1234</p>
+    </div>
+
+    <div class="call-controls">
+        <button id="register" onclick="registerSIP()">📞 Register SIP</button>
+        <button id="unregister" onclick="unregisterSIP()" disabled>📴 Unregister</button>
+    </div>
+
+    <div class="call-controls">
+        <h3>🏥 Call Extensions:</h3>
+        <button class="extension-btn" onclick="makeCall('1001')" id="call1001" disabled>
+            1001 - Downtown Medical Center
+        </button>
+        <button class="extension-btn" onclick="makeCall('1002')" id="call1002" disabled>
+            1002 - Westside Family Practice
+        </button>
+        <button class="extension-btn" onclick="makeCall('1003')" id="call1003" disabled>
+            1003 - Pediatric Care Clinic
+        </button>
+    </div>
+
+    <div class="call-controls">
+        <button class="hangup-btn" onclick="hangupCall()" id="hangup" disabled>
+            📞❌ Hang Up
+        </button>
+    </div>
+
+    <div>
+        <h3>🔊 Audio:</h3>
+        <audio id="remoteAudio" controls autoplay></audio>
+        <audio id="localAudio" muted></audio>
+    </div>
+
+    <div id="logs" style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 20px; height: 200px; overflow-y: scroll; font-family: monospace; font-size: 12px;">
+        <strong>📋 Call Logs:</strong><br>
+    </div>
+
+    <script>
+        let ua = null;
+        let currentSession = null;
+
+        function log(message) {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.innerHTML += `[${timestamp}] ${message}<br>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.innerHTML = `<strong>📞 Status:</strong> ${message}`;
+        }
+
+        function registerSIP() {
+            try {
+                const socket = new JsSIP.WebSocketInterface('ws://localhost:5060');
+                
+                const configuration = {
+                    sockets: [socket],
+                    uri: 'sip:1000@localhost',
+                    password: '1234',
+                    display_name: 'Test User'
+                };
+
+                ua = new JsSIP.UA(configuration);
+
+                ua.on('connecting', function() {
+                    log('Connecting to FreeSWITCH...');
+                    updateStatus('Connecting...', 'info');
+                });
+
+                ua.on('connected', function() {
+                    log('Connected to FreeSWITCH');
+                    updateStatus('Connected', 'success');
+                });
+
+                ua.on('disconnected', function() {
+                    log('Disconnected from FreeSWITCH');
+                    updateStatus('Disconnected', 'error');
+                });
+
+                ua.on('registered', function() {
+                    log('✅ Successfully registered as user 1000');
+                    updateStatus('Registered - Ready to make calls!', 'success');
+                    
+                    // Enable call buttons
+                    document.getElementById('call1001').disabled = false;
+                    document.getElementById('call1002').disabled = false;
+                    document.getElementById('call1003').disabled = false;
+                    document.getElementById('register').disabled = true;
+                    document.getElementById('unregister').disabled = false;
+                });
+
+                ua.on('unregistered', function() {
+                    log('Unregistered from FreeSWITCH');
+                    updateStatus('Unregistered', 'info');
+                    
+                    // Disable call buttons
+                    document.getElementById('call1001').disabled = true;
+                    document.getElementById('call1002').disabled = true;
+                    document.getElementById('call1003').disabled = true;
+                    document.getElementById('register').disabled = false;
+                    document.getElementById('unregister').disabled = true;
+                });
+
+                ua.on('registrationFailed', function(e) {
+                    log('❌ Registration failed: ' + e.cause);
+                    updateStatus('Registration failed', 'error');
+                });
+
+                ua.start();
+
+            } catch (error) {
+                log('❌ Error initializing SIP: ' + error.message);
+                updateStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        function unregisterSIP() {
+            if (ua) {
+                ua.stop();
+                ua = null;
+            }
+        }
+
+        function makeCall(extension) {
+            if (!ua || !ua.isRegistered()) {
+                log('❌ Not registered. Please register first.');
+                return;
+            }
+
+            const target = `sip:${extension}@localhost`;
+            log(`📞 Calling ${extension}...`);
+            updateStatus(`Calling ${extension}...`, 'info');
+
+            const options = {
+                mediaConstraints: { audio: true, video: false }
+            };
+
+            currentSession = ua.call(target, options);
+
+            currentSession.on('progress', function() {
+                log(`📞 Call to ${extension} is ringing...`);
+            });
+
+            currentSession.on('accepted', function() {
+                log(`✅ Call to ${extension} answered!`);
+                updateStatus(`Connected to ${extension}`, 'success');
+                document.getElementById('hangup').disabled = false;
+                
+                // Set up audio
+                const remoteAudio = document.getElementById('remoteAudio');
+                remoteAudio.srcObject = currentSession.connection.getRemoteStreams()[0];
+            });
+
+            currentSession.on('ended', function() {
+                log(`📞 Call to ${extension} ended`);
+                updateStatus('Call ended', 'info');
+                document.getElementById('hangup').disabled = true;
+                currentSession = null;
+            });
+
+            currentSession.on('failed', function(e) {
+                log(`❌ Call to ${extension} failed: ${e.cause}`);
+                updateStatus('Call failed', 'error');
+                document.getElementById('hangup').disabled = true;
+                currentSession = null;
+            });
+        }
+
+        function hangupCall() {
+            if (currentSession) {
+                currentSession.terminate();
+                log('📞 Call terminated by user');
+            }
+        }
+
+        // Initialize
+        log('🚀 Voice test client initialized');
+        updateStatus('Ready to register', 'info');
+    </script>
+</body>
+</html>

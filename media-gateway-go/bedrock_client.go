@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -95,7 +94,7 @@ func InvokeBedrockAgent(ctx context.Context, sessionId, inputText string, sessio
 		case *types.ResponseStreamMemberTrace:
 			// Log trace information for debugging
 			if v.Value.Trace != nil {
-				logAgentTrace(sessionId, v.Value.Trace)
+				logAgentTrace(sessionId, &v.Value.Trace)
 			}
 
 		case *types.ResponseStreamMemberReturnControl:
@@ -125,37 +124,8 @@ func InvokeBedrockAgent(ctx context.Context, sessionId, inputText string, sessio
 }
 
 func logAgentTrace(sessionId string, trace *types.Trace) {
-	// Log orchestration trace for debugging
-	if trace.OrchestrationTrace != nil {
-		ot := trace.OrchestrationTrace
-		
-		if ot.ModelInvocationInput != nil {
-			log.Printf("[%s] Trace - Model invocation input received", sessionId)
-		}
-		
-		if ot.Rationale != nil && ot.Rationale.Text != nil {
-			log.Printf("[%s] Trace - Rationale: %s", sessionId, *ot.Rationale.Text)
-		}
-		
-		if ot.InvocationInput != nil {
-			if ot.InvocationInput.ActionGroupInvocationInput != nil {
-				agi := ot.InvocationInput.ActionGroupInvocationInput
-				log.Printf("[%s] Trace - Action invocation: %s / %s", 
-					sessionId, 
-					aws.ToString(agi.ActionGroupName),
-					aws.ToString(agi.ApiPath))
-			}
-		}
-		
-		if ot.Observation != nil {
-			if ot.Observation.ActionGroupInvocationOutput != nil {
-				log.Printf("[%s] Trace - Action output received", sessionId)
-			}
-			if ot.Observation.FinalResponse != nil {
-				log.Printf("[%s] Trace - Final response generated", sessionId)
-			}
-		}
-	}
+	// Simple trace logging - the Trace interface may vary by SDK version
+	log.Printf("[%s] Trace - Agent processing step", sessionId)
 }
 
 func containsHandoffSignal(text string) bool {

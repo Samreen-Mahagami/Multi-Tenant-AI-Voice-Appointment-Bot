@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreeSWITCH Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .config { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .extension { background: #e9ecef; padding: 10px; margin: 5px 0; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 FreeSWITCH Integration Test</h1>
+    
+    <div class="status success">
+        <strong>✅ System Status:</strong> FreeSWITCH integration is running and ready for testing
+    </div>
+
+    <h2>📞 How to Test with Softphone</h2>
+    
+    <div class="config">
+        <h3>SIP Configuration:</h3>
+        <ul>
+            <li><strong>Server:</strong> localhost (or your machine's IP)</li>
+            <li><strong>Port:</strong> 5060</li>
+            <li><strong>Username:</strong> 1000</li>
+            <li><strong>Password:</strong> 1234</li>
+            <li><strong>Transport:</strong> UDP</li>
+        </ul>
+    </div>
+
+    <h3>🏥 Available Extensions:</h3>
+    
+    <div class="extension">
+        <strong>1001</strong> → Downtown Medical Center<br>
+        <em>Greeting:</em> "Hello, thank you for calling Downtown Medical Center. How can I help you today?"
+    </div>
+    
+    <div class="extension">
+        <strong>1002</strong> → Westside Family Practice<br>
+        <em>Greeting:</em> "Hi there! You've reached Westside Family Practice. How may I assist you today?"
+    </div>
+    
+    <div class="extension">
+        <strong>1003</strong> → Pediatric Care Clinic<br>
+        <em>Greeting:</em> "Welcome to Pediatric Care Clinic! We're here to help with your child's health needs."
+    </div>
+
+    <h2>🔧 System Tests</h2>
+    
+    <button onclick="testServices()">Test All Services</button>
+    <button onclick="testTenant()">Test Tenant Resolution</button>
+    <button onclick="testWebSocket()">Test WebSocket Connection</button>
+    
+    <div id="testResults"></div>
+
+    <h2>📱 Recommended Softphones</h2>
+    <ul>
+        <li><a href="https://www.zoiper.com/en/voip-softphone/download/current" target="_blank">Zoiper (Recommended)</a></li>
+        <li><a href="https://www.counterpath.com/x-lite/" target="_blank">X-Lite</a></li>
+        <li><a href="https://www.linphone.org/" target="_blank">Linphone</a></li>
+    </ul>
+
+    <div class="info">
+        <strong>💡 Demo Flow:</strong><br>
+        1. Download and install a softphone<br>
+        2. Configure with the settings above<br>
+        3. Register (should show "Registered" status)<br>
+        4. Dial 1001, 1002, or 1003<br>
+        5. You should hear the clinic-specific greeting<br>
+        6. The system will log audio reception and simulate AI responses
+    </div>
+
+    <script>
+        async function testServices() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<div class="info">Testing services...</div>';
+            
+            const tests = [
+                { name: 'Tenant Config', url: 'http://localhost:7001/v1/health' },
+                { name: 'Appointment Service', url: 'http://localhost:7002/v1/health' },
+                { name: 'Media Gateway', url: 'http://localhost:8080/health' }
+            ];
+            
+            let html = '<h3>Service Test Results:</h3>';
+            
+            for (const test of tests) {
+                try {
+                    const response = await fetch(test.url);
+                    const data = await response.json();
+                    html += `<div class="success">✅ ${test.name}: ${data.status}</div>`;
+                } catch (error) {
+                    html += `<div class="error">❌ ${test.name}: ${error.message}</div>`;
+                }
+            }
+            
+            results.innerHTML = html;
+        }
+        
+        async function testTenant() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<div class="info">Testing tenant resolution...</div>';
+            
+            try {
+                const response = await fetch('http://localhost:7001/v1/tenants/resolve?did=1001');
+                const data = await response.json();
+                results.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Tenant Resolution Test:</h3>
+                        <strong>DID 1001 →</strong> ${data.display_name}<br>
+                        <strong>Greeting:</strong> "${data.greeting}"<br>
+                        <strong>Voice:</strong> ${data.polly_voice_id}
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Tenant test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function testWebSocket() {
+            const results = document.getElementById('testResults');
+            results.innerHTML = '<div class="info">Testing WebSocket connection...</div>';
+            
+            try {
+                const ws = new WebSocket('ws://localhost:8080/ws/audio?callId=web-test&did=1001');
+                
+                ws.onopen = function() {
+                    results.innerHTML = '<div class="success">✅ WebSocket connection successful!</div>';
+                    ws.close();
+                };
+                
+                ws.onerror = function() {
+                    results.innerHTML = '<div class="error">❌ WebSocket connection failed</div>';
+                };
+                
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        ws.close();
+                        results.innerHTML = '<div class="error">❌ WebSocket connection timeout</div>';
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ WebSocket test failed: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

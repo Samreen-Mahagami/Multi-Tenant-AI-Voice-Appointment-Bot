@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -102,7 +103,7 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 		session.processInitialGreeting()
 	}()
 
-	// Read audio frames from FreeSWITCH
+	// Read audio frames from FreeSWITCH or browser
 	for {
 		select {
 		case <-ctx.Done():
@@ -110,7 +111,13 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 
-		ws.SetReadDeadline(time.Now().Add(30 * time.Second))
+		// Set longer timeout for demo mode since browser doesn't send continuous audio
+		timeout := 30 * time.Second
+		if transcribeClient == nil { // Demo mode
+			timeout = 5 * time.Minute // Much longer timeout for demo mode
+		}
+		
+		ws.SetReadDeadline(time.Now().Add(timeout))
 		mt, data, err := ws.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
@@ -119,19 +126,47 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if mt == websocket.TextMessage {
+			// Handle text messages from browser (demo mode)
+			var msg map[string]interface{}
+			if err := json.Unmarshal(data, &msg); err == nil {
+				if msgType, ok := msg["type"].(string); ok {
+					switch msgType {
+					case "transcript":
+						if text, ok := msg["text"].(string); ok && text != "" {
+							log.Printf("[%s] 📝 Browser transcript: %s", callID, text)
+							session.processAgentTurn(text)
+						}
+					case "heartbeat":
+						// Keep connection alive
+						log.Printf("[%s] 💓 Heartbeat received", callID)
+					}
+				}
+			}
+			continue
+		}
+
 		if mt != websocket.BinaryMessage {
 			continue
 		}
 
-		// Real audio data from FreeSWITCH
-		select {
-		case session.AudioCh <- data:
-		default:
+		// Real audio data from FreeSWITCH (only in real AWS mode)
+		if transcribeClient != nil {
+			select {
+			case session.AudioCh <- data:
+			default:
+			}
 		}
 	}
 }
 
 func (s *CallSession) startTranscribeStream() {
+	// Check if we have real AWS Transcribe client
+	if transcribeClient == nil {
+		log.Printf("[%s] 🎭 Demo Mode: Using browser speech recognition instead of AWS Transcribe", s.CallID)
+		return
+	}
+
 	err := StartTranscribe(
 		s.Ctx,
 		transcribeClient,
@@ -157,6 +192,14 @@ func (s *CallSession) startTranscribeStream() {
 }
 
 func (s *CallSession) processInitialGreeting() {
+	// Check if we have real Bedrock client
+	if bedrockClient == nil {
+		log.Printf("[%s] 🎭 Demo Mode: Using simulated greeting", s.CallID)
+		greeting := s.Tenant.Greeting
+		s.speakResponse(greeting)
+		return
+	}
+
 	// Create session attributes with tenant context
 	sessionAttrs := map[string]string{
 		"tenant_id":    s.Tenant.TenantId,
@@ -182,6 +225,40 @@ func (s *CallSession) processInitialGreeting() {
 }
 
 func (s *CallSession) processAgentTurn(userText string) {
+	// Store conversation transcript to S3
+	if s3Client != nil {
+		go func() {
+			transcript := fmt.Sprintf("[%s] User: %s\n", time.Now().Format("15:04:05"), userText)
+			StoreConversationLog(s.Ctx, s3Bucket, s.CallID, transcript)
+		}()
+	}
+
+	// Check if we have real Bedrock client
+	if bedrockClient == nil {
+		log.Printf("[%s] 🎭 Demo Mode: Simulating AI response for: \"%s\"", s.CallID, userText)
+		
+		// Simple demo responses
+		var response string
+		lowerText := strings.ToLower(userText)
+		
+		if strings.Contains(lowerText, "appointment") || strings.Contains(lowerText, "book") {
+			response = "I'd be happy to help you book an appointment. What day works best for you?"
+		} else if strings.Contains(lowerText, "tomorrow") || strings.Contains(lowerText, "morning") {
+			response = "Let me check our availability for tomorrow morning. I have slots at 9 AM, 9:30 AM, and 10 AM. Which would you prefer?"
+		} else if strings.Contains(lowerText, "9:30") || strings.Contains(lowerText, "930") {
+			response = "Perfect! I can book you for 9:30 AM tomorrow. May I have your full name please?"
+		} else if strings.Contains(lowerText, "name") || len(strings.Fields(userText)) >= 2 {
+			response = "Thank you! And what's the best email address to send your confirmation?"
+		} else if strings.Contains(lowerText, "@") || strings.Contains(lowerText, "email") {
+			response = "Perfect! I've booked your appointment for tomorrow at 9:30 AM. Your confirmation number is DEMO-1220-001. You'll receive an email confirmation shortly. Is there anything else I can help you with?"
+		} else {
+			response = "I understand. How can I help you today?"
+		}
+		
+		s.speakResponse(response)
+		return
+	}
+
 	sessionAttrs := map[string]string{
 		"tenant_id":   s.Tenant.TenantId,
 		"tenant_name": s.Tenant.DisplayName,
@@ -198,6 +275,15 @@ func (s *CallSession) processAgentTurn(userText string) {
 
 	if resp.Completion != "" {
 		log.Printf("[%s] ✅ Bedrock Agent response: \"%s\"", s.CallID, resp.Completion)
+		
+		// Store AI response to S3
+		if s3Client != nil {
+			go func() {
+				transcript := fmt.Sprintf("[%s] AI: %s\n", time.Now().Format("15:04:05"), resp.Completion)
+				StoreConversationLog(s.Ctx, s3Bucket, s.CallID, transcript)
+			}()
+		}
+		
 		s.speakResponse(resp.Completion)
 	}
 
@@ -219,6 +305,38 @@ func (s *CallSession) processAgentTurn(userText string) {
 func (s *CallSession) speakResponse(text string) {
 	s.BotSpeaking.Store(true)
 	defer s.BotSpeaking.Store(false)
+
+	// Check if we have real Polly client
+	if pollyClient == nil {
+		log.Printf("[%s] 🎭 Demo Mode: Sending text for browser TTS: \"%s\"", s.CallID, text)
+		
+		// Send response to browser for TTS
+		response := map[string]interface{}{
+			"type":   "response",
+			"text":   text,
+			"voice":  s.Tenant.PollyVoiceId,
+			"engine": s.Tenant.PollyEngine,
+		}
+		
+		s.WriteMu.Lock()
+		writeErr := s.WS.WriteJSON(response)
+		s.WriteMu.Unlock()
+		
+		if writeErr != nil {
+			log.Printf("[%s] ❌ WebSocket write error: %v", s.CallID, writeErr)
+		}
+		
+		// Simulate speaking duration
+		words := len(strings.Fields(text))
+		duration := time.Duration(words*300) * time.Millisecond // ~300ms per word
+		if duration < 2*time.Second {
+			duration = 2 * time.Second
+		}
+		
+		time.Sleep(duration)
+		log.Printf("[%s] ✅ Demo voice response completed", s.CallID)
+		return
+	}
 
 	log.Printf("[%s] 🔊 REAL Polly TTS: \"%s\" (Voice: %s)", s.CallID, text, s.Tenant.PollyVoiceId)
 

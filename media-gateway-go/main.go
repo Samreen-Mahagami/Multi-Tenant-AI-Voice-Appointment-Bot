@@ -20,6 +20,7 @@ var (
 	pollyClient      *polly.Client
 	eslConfig        ESLConfig
 	tenantConfigURL  string
+	s3Bucket         string
 )
 
 type ESLConfig struct {
@@ -30,23 +31,52 @@ type ESLConfig struct {
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Println("Starting Media Gateway with REAL AWS Voice Integration...")
-
+	
 	ctx := context.Background()
 
-	// Load AWS config
+	// Load S3 bucket from environment
+	s3Bucket = getEnv("S3_BUCKET", "clinic-voice-processing-089580247707")
+	
+	// Check if we have AWS credentials (either env vars or AWS CLI)
+	awsAccessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	awsSecretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	
+	// Try to load AWS config to check if credentials are available
 	awsCfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		log.Fatalf("Failed to load AWS config: %v", err)
-	}
+	hasAWSCredentials := err == nil
+	
+	if (awsAccessKey == "" || awsAccessKey == "your_access_key_here" || 
+	   awsSecretKey == "" || awsSecretKey == "your_secret_key_here") && !hasAWSCredentials {
+		log.Println("⚠️  AWS credentials not configured - starting in DEMO MODE")
+		log.Println("🎭 Demo Mode: Simulated voice responses (no real AWS calls)")
+		log.Println("💡 To use real AWS: Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env or configure AWS CLI")
+	} else {
+		log.Println("🚀 Starting Media Gateway with FULL AWS Voice Integration + S3 Storage...")
+		
+		// Use the already loaded AWS config or load it again
+		if err != nil {
+			awsCfg, err = config.LoadDefaultConfig(ctx)
+		}
+		
+		if err != nil {
+			log.Printf("❌ Failed to load AWS config: %v", err)
+			log.Println("🎭 Falling back to DEMO MODE")
+		} else {
+			// Initialize AWS clients
+			transcribeClient = transcribestreaming.NewFromConfig(awsCfg)
+			pollyClient = polly.NewFromConfig(awsCfg)
+			
+			// Initialize S3 client
+			InitS3Client(awsCfg)
 
-	// Initialize AWS clients
-	transcribeClient = transcribestreaming.NewFromConfig(awsCfg)
-	pollyClient = polly.NewFromConfig(awsCfg)
-
-	// Initialize Bedrock client
-	if err := initBedrockClient(ctx); err != nil {
-		log.Fatalf("Failed to initialize Bedrock client: %v", err)
+			// Initialize Bedrock client
+			if err := initBedrockClient(ctx); err != nil {
+				log.Printf("❌ Failed to initialize Bedrock client: %v", err)
+				log.Println("🎭 Falling back to DEMO MODE")
+			}
+			
+			log.Printf("📦 S3 Bucket configured: %s", s3Bucket)
+		}
 	}
 
 	// Load configuration from environment
@@ -83,9 +113,17 @@ func main() {
 	}()
 
 	log.Println("🎙️ Media Gateway listening on :8080")
-	log.Printf("🧠 Bedrock Agent ID: %s", bedrockAgentId)
-	log.Printf("🎯 Bedrock Agent Alias: %s", bedrockAliasId)
-	log.Println("🔊 Real AWS Voice Integration: Transcribe + Polly + Bedrock")
+	
+	if bedrockAgentId != "" {
+		log.Printf("🧠 Bedrock Agent ID: %s", bedrockAgentId)
+		log.Printf("🎯 Bedrock Agent Alias: %s", bedrockAliasId)
+	}
+	
+	if transcribeClient != nil && pollyClient != nil && s3Client != nil {
+		log.Println("🔊 FULL AWS Voice Integration: S3 → Transcribe → Bedrock → Polly → S3")
+	} else {
+		log.Println("🎭 Demo Mode: Browser TTS + Simulated AI responses")
+	}
 
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)

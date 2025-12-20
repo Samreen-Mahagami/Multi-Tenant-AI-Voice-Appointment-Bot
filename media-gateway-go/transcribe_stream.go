@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"log"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/transcribestreaming"
@@ -27,7 +26,6 @@ func StartTranscribe(
 		LanguageCode:         types.LanguageCodeEnUs,
 		MediaEncoding:        types.MediaEncodingPcm,
 		MediaSampleRateHertz: aws.Int32(8000), // FreeSWITCH typically uses 8kHz
-		AudioStream:          make(chan types.AudioStream),
 	}
 
 	// Start the transcription
@@ -36,12 +34,13 @@ func StartTranscribe(
 		return err
 	}
 
-	// Channel to send audio events
-	audioEventCh := input.AudioStream
+	// Get the stream for sending audio
+	stream := output.GetStream()
+	defer stream.Close()
 
 	// Start goroutine to send audio data
 	go func() {
-		defer close(audioEventCh)
+		defer stream.Close()
 		
 		for {
 			select {
@@ -62,9 +61,8 @@ func StartTranscribe(
 						},
 					}
 					
-					select {
-					case audioEventCh <- audioEvent:
-					case <-ctx.Done():
+					if err := stream.Send(ctx, audioEvent); err != nil {
+						log.Printf("❌ Error sending audio: %v", err)
 						return
 					}
 				}
@@ -73,24 +71,10 @@ func StartTranscribe(
 	}()
 
 	// Process transcription results
-	stream := output.GetStream()
-	defer stream.Close()
-
 	var speechStarted bool
 	var currentTranscript string
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		event, ok := <-stream.Events()
-		if !ok {
-			break
-		}
-
+	for event := range stream.Events() {
 		switch e := event.(type) {
 		case *types.TranscriptResultStreamMemberTranscriptEvent:
 			result := e.Value.Transcript
@@ -107,7 +91,7 @@ func StartTranscribe(
 								log.Printf("🎤 Speech detected, starting transcription...")
 							}
 							
-							if res.IsPartial != nil && !*res.IsPartial {
+							if !res.IsPartial {
 								// Final transcript
 								currentTranscript = transcript
 								log.Printf("📝 Final transcript: %s", currentTranscript)
@@ -123,17 +107,8 @@ func StartTranscribe(
 				}
 			}
 			
-		case *types.TranscriptResultStreamMemberBadRequestException:
-			log.Printf("❌ Transcribe bad request: %s", aws.ToString(e.Value.Message))
-			return &e.Value
-			
-		case *types.TranscriptResultStreamMemberLimitExceededException:
-			log.Printf("❌ Transcribe limit exceeded: %s", aws.ToString(e.Value.Message))
-			return &e.Value
-			
-		case *types.TranscriptResultStreamMemberInternalFailureException:
-			log.Printf("❌ Transcribe internal failure: %s", aws.ToString(e.Value.Message))
-			return &e.Value
+		default:
+			log.Printf("❌ Transcribe unknown event type: %T", e)
 		}
 	}
 
