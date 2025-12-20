@@ -4,6 +4,9 @@ networks:
   ivr-network:
     driver: bridge
 
+volumes:
+  freeswitch-sounds:
+
 services:
   # ===========================================
   # TENANT CONFIG SERVICE
@@ -50,39 +53,63 @@ services:
       start_period: 5s
 
   # ===========================================
-  # FUTURE: MEDIA GATEWAY (Phase 3)
+  # MEDIA GATEWAY (FreeSWITCH Bridge)
   # ===========================================
-  # media-gateway-go:
-  #   build: ./media-gateway-go
-  #   container_name: media-gateway-go
-  #   networks:
-  #     - ivr-network
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     - AWS_REGION=${AWS_REGION:-us-east-1}
-  #     - BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID}
-  #     - BEDROCK_AGENT_ALIAS_ID=${BEDROCK_AGENT_ALIAS_ID}
-  #     - TENANT_CONFIG_URL=http://tenant-config-go:7001
-  #     - APPOINTMENT_SERVICE_URL=http://appointment-service-go:7002
-  #   depends_on:
-  #     tenant-config-go:
-  #       condition: service_healthy
-  #     appointment-service-go:
-  #       condition: service_healthy
+  media-gateway-go:
+    build: ./media-gateway-go
+    container_name: media-gateway-go
+    networks:
+      - ivr-network
+    ports:
+      - "8080:8080"
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID}
+      - BEDROCK_AGENT_ALIAS_ID=${BEDROCK_AGENT_ALIAS_ID}
+      - TENANT_CONFIG_URL=http://tenant-config-go:7001
+      - APPOINTMENT_SERVICE_URL=http://appointment-service-go:7002
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    depends_on:
+      tenant-config-go:
+        condition: service_healthy
+      appointment-service-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   # ===========================================
-  # FUTURE: FREESWITCH (Phase 4)
+  # FREESWITCH
   # ===========================================
-  # freeswitch:
-  #   image: signalwire/freeswitch:latest
-  #   container_name: freeswitch
-  #   networks:
-  #     - ivr-network
-  #   ports:
-  #     - "5060:5060/udp"
-  #     - "5060:5060/tcp"
-  #     - "8021:8021/tcp"
-  #   depends_on:
-  #     media-gateway-go:
-  #       condition: service_healthy
+  freeswitch:
+    image: freeswitch/freeswitch:latest
+    container_name: freeswitch
+    networks:
+      - ivr-network
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5080:5080/udp"
+      - "8021:8021/tcp"
+      - "16384-16484:16384-16484/udp"
+    volumes:
+      - ./freeswitch/conf/dialplan:/etc/freeswitch/dialplan:ro
+      - ./freeswitch/conf/directory:/etc/freeswitch/directory:ro
+      - ./freeswitch/conf/autoload_configs/event_socket.conf.xml:/etc/freeswitch/autoload_configs/event_socket.conf.xml:ro
+      - ./freeswitch/conf/autoload_configs/modules.conf.xml:/etc/freeswitch/autoload_configs/modules.conf.xml:ro
+      - freeswitch-sounds:/usr/share/freeswitch/sounds
+    depends_on:
+      media-gateway-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "fs_cli", "-x", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

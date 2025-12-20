@@ -12,10 +12,8 @@
         <action application="set" data="tenant_did=1001"/>
         <action application="set" data="tenant_name=downtown_medical"/>
         <action application="set" data="clinic_name=Downtown Medical Center"/>
-        <action application="set" data="greeting=Hello, thank you for calling Downtown Medical Center. How can I help you today?"/>
-        <action application="set" data="polly_voice=Joanna"/>
         <action application="answer"/>
-        <action application="lua" data="bedrock_agent_handler.lua"/>
+        <action application="socket" data="media-gateway-go:8080 async full"/>
       </condition>
     </extension>
 
@@ -25,10 +23,8 @@
         <action application="set" data="tenant_did=1002"/>
         <action application="set" data="tenant_name=westside_family"/>
         <action application="set" data="clinic_name=Westside Family Practice"/>
-        <action application="set" data="greeting=Hi there! You've reached Westside Family Practice. How may I assist you today?"/>
-        <action application="set" data="polly_voice=Matthew"/>
         <action application="answer"/>
-        <action application="lua" data="bedrock_agent_handler.lua"/>
+        <action application="socket" data="media-gateway-go:8080 async full"/>
       </condition>
     </extension>
 
@@ -38,10 +34,8 @@
         <action application="set" data="tenant_did=1003"/>
         <action application="set" data="tenant_name=pediatric_care"/>
         <action application="set" data="clinic_name=Pediatric Care Clinic"/>
-        <action application="set" data="greeting=Welcome to Pediatric Care Clinic! We're here to help with your child's health needs."/>
-        <action application="set" data="polly_voice=Salli"/>
         <action application="answer"/>
-        <action application="lua" data="bedrock_agent_handler.lua"/>
+        <action application="socket" data="media-gateway-go:8080 async full"/>
       </condition>
     </extension>
 
