@@ -67,3 +67,5 @@ MY_LEARNING_SUMMARY.md
 
 # Documentation (exclude detailed implementation guide)
 docs/IMPLEMENTATION_GUIDE.md
+# Personal learning summary (keep local only)
+MY_LEARNING_SUMMARY.md
