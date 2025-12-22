@@ -62,9 +62,31 @@ Build a production-quality AI voice receptionist for medical practices demonstra
    ```
 
 4. **Test the System**
+   
+   **Browser Voice Client:**
    ```bash
-   ./scripts/test_agent.sh
+   # Open in browser
+   http://localhost:8000/simple_voice_test.html
    ```
+   
+   **Or use the advanced client:**
+   ```bash
+   http://localhost:8000/browser_voice_client.html
+   ```
+
+## Testing
+
+### Voice Client Options
+
+1. **simple_voice_test.html** - Quick voice testing interface
+   - Select hospital (1001, 1002, 1003)
+   - Click to speak
+   - Real-time AI responses
+
+2. **browser_voice_client.html** - Advanced testing interface
+   - Full audio visualization
+   - Detailed connection status
+   - Extended debugging features
 
 ## Architecture
 
