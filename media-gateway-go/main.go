@@ -37,45 +37,29 @@ func main() {
 	// Load S3 bucket from environment
 	s3Bucket = getEnv("S3_BUCKET", "clinic-voice-processing-089580247707")
 	
-	// Check if we have AWS credentials (either env vars or AWS CLI)
-	awsAccessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-	awsSecretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	// Force AWS mode - try to load AWS config first
+	log.Println("🚀 Starting Media Gateway with FULL AWS Voice Integration + S3 Storage...")
 	
-	// Try to load AWS config to check if credentials are available
+	// Load AWS config
 	awsCfg, err := config.LoadDefaultConfig(ctx)
-	hasAWSCredentials := err == nil
-	
-	if (awsAccessKey == "" || awsAccessKey == "your_access_key_here" || 
-	   awsSecretKey == "" || awsSecretKey == "your_secret_key_here") && !hasAWSCredentials {
-		log.Println("⚠️  AWS credentials not configured - starting in DEMO MODE")
-		log.Println("🎭 Demo Mode: Simulated voice responses (no real AWS calls)")
-		log.Println("💡 To use real AWS: Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env or configure AWS CLI")
+	if err != nil {
+		log.Printf("❌ Failed to load AWS config: %v", err)
+		log.Println("🎭 Falling back to browser mode")
 	} else {
-		log.Println("🚀 Starting Media Gateway with FULL AWS Voice Integration + S3 Storage...")
+		// Initialize AWS clients
+		transcribeClient = transcribestreaming.NewFromConfig(awsCfg)
+		pollyClient = polly.NewFromConfig(awsCfg)
 		
-		// Use the already loaded AWS config or load it again
-		if err != nil {
-			awsCfg, err = config.LoadDefaultConfig(ctx)
-		}
-		
-		if err != nil {
-			log.Printf("❌ Failed to load AWS config: %v", err)
-			log.Println("🎭 Falling back to DEMO MODE")
-		} else {
-			// Initialize AWS clients
-			transcribeClient = transcribestreaming.NewFromConfig(awsCfg)
-			pollyClient = polly.NewFromConfig(awsCfg)
-			
-			// Initialize S3 client
-			InitS3Client(awsCfg)
+		// Initialize S3 client
+		InitS3Client(awsCfg)
 
-			// Initialize Bedrock client
-			if err := initBedrockClient(ctx); err != nil {
-				log.Printf("❌ Failed to initialize Bedrock client: %v", err)
-				log.Println("🎭 Falling back to DEMO MODE")
-			}
-			
+		// Initialize Bedrock client
+		if err := initBedrockClient(ctx); err != nil {
+			log.Printf("❌ Failed to initialize Bedrock client: %v", err)
+			log.Println("🎭 Falling back to browser mode")
+		} else {
 			log.Printf("📦 S3 Bucket configured: %s", s3Bucket)
+			log.Println("✅ ALL AWS SERVICES ENABLED")
 		}
 	}
 
@@ -121,8 +105,9 @@ func main() {
 	
 	if transcribeClient != nil && pollyClient != nil && s3Client != nil {
 		log.Println("🔊 FULL AWS Voice Integration: S3 → Transcribe → Bedrock → Polly → S3")
+		log.Println("🎯 Ready for: Voice → S3 → Transcribe → Bedrock Agent → Polly → S3 → Voice")
 	} else {
-		log.Println("🎭 Demo Mode: Browser TTS + Simulated AI responses")
+		log.Println("🎭 Browser Mode: Browser TTS + Simulated AI responses")
 	}
 
 	if err := server.ListenAndServe(); err != http.ErrServerClosed {

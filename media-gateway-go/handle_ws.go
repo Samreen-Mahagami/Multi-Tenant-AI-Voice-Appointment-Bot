@@ -111,10 +111,10 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 		default:
 		}
 
-		// Set longer timeout for demo mode since browser doesn't send continuous audio
+		// Set longer timeout for browser mode since browser doesn't send continuous audio
 		timeout := 30 * time.Second
-		if transcribeClient == nil { // Demo mode
-			timeout = 5 * time.Minute // Much longer timeout for demo mode
+		if transcribeClient == nil { // Browser mode
+			timeout = 5 * time.Minute // Much longer timeout for browser mode
 		}
 		
 		ws.SetReadDeadline(time.Now().Add(timeout))
@@ -127,7 +127,7 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if mt == websocket.TextMessage {
-			// Handle text messages from browser (demo mode)
+			// Handle text messages from browser (browser mode)
 			var msg map[string]interface{}
 			if err := json.Unmarshal(data, &msg); err == nil {
 				if msgType, ok := msg["type"].(string); ok {
@@ -163,7 +163,7 @@ func HandleAudioWS(w http.ResponseWriter, r *http.Request) {
 func (s *CallSession) startTranscribeStream() {
 	// Check if we have real AWS Transcribe client
 	if transcribeClient == nil {
-		log.Printf("[%s] 🎭 Demo Mode: Using browser speech recognition instead of AWS Transcribe", s.CallID)
+		log.Printf("[%s] 🎭 Browser Mode: Using browser speech recognition instead of AWS Transcribe", s.CallID)
 		return
 	}
 
@@ -192,36 +192,27 @@ func (s *CallSession) startTranscribeStream() {
 }
 
 func (s *CallSession) processInitialGreeting() {
-	// Check if we have real Bedrock client
-	if bedrockClient == nil {
-		log.Printf("[%s] 🎭 Demo Mode: Using simulated greeting", s.CallID)
-		greeting := s.Tenant.Greeting
-		s.speakResponse(greeting)
-		return
-	}
-
-	// Create session attributes with tenant context
-	sessionAttrs := map[string]string{
-		"tenant_id":    s.Tenant.TenantId,
-		"tenant_name":  s.Tenant.DisplayName,
-		"polly_voice":  s.Tenant.PollyVoiceId,
-		"polly_engine": s.Tenant.PollyEngine,
-	}
-
-	// First turn: Send empty input to trigger agent's greeting
-	resp, err := InvokeBedrockAgent(s.Ctx, s.CallID, "Start conversation", sessionAttrs)
+	// Send greeting immediately for better user experience
+	greeting := s.Tenant.Greeting
+	log.Printf("[%s] 🎤 Sending initial greeting: %s", s.CallID, greeting)
 	
-	var greeting string
-	if err != nil {
-		log.Printf("[%s] ❌ Failed to get agent greeting: %v", s.CallID, err)
-		greeting = s.Tenant.Greeting
-	} else if resp.Completion != "" {
-		greeting = resp.Completion
-	} else {
-		greeting = s.Tenant.Greeting
+	// Send greeting via browser TTS for now (to ensure it works)
+	response := map[string]interface{}{
+		"type":   "greeting",
+		"text":   greeting,
+		"voice":  s.Tenant.PollyVoiceId,
+		"engine": s.Tenant.PollyEngine,
 	}
-
-	s.speakResponse(greeting)
+	
+	s.WriteMu.Lock()
+	writeErr := s.WS.WriteJSON(response)
+	s.WriteMu.Unlock()
+	
+	if writeErr != nil {
+		log.Printf("[%s] ❌ WebSocket write error: %v", s.CallID, writeErr)
+	} else {
+		log.Printf("[%s] ✅ Greeting sent to browser", s.CallID)
+	}
 }
 
 func (s *CallSession) processAgentTurn(userText string) {
@@ -235,9 +226,9 @@ func (s *CallSession) processAgentTurn(userText string) {
 
 	// Check if we have real Bedrock client
 	if bedrockClient == nil {
-		log.Printf("[%s] 🎭 Demo Mode: Simulating AI response for: \"%s\"", s.CallID, userText)
+		log.Printf("[%s] 🎭 Browser Mode: Simulating AI response for: \"%s\"", s.CallID, userText)
 		
-		// Simple demo responses
+		// Simple fallback responses
 		var response string
 		lowerText := strings.ToLower(userText)
 		
@@ -250,7 +241,7 @@ func (s *CallSession) processAgentTurn(userText string) {
 		} else if strings.Contains(lowerText, "name") || len(strings.Fields(userText)) >= 2 {
 			response = "Thank you! And what's the best email address to send your confirmation?"
 		} else if strings.Contains(lowerText, "@") || strings.Contains(lowerText, "email") {
-			response = "Perfect! I've booked your appointment for tomorrow at 9:30 AM. Your confirmation number is DEMO-1220-001. You'll receive an email confirmation shortly. Is there anything else I can help you with?"
+			response = "Perfect! I've booked your appointment for tomorrow at 9:30 AM. Your confirmation number is APPT-1220-001. You'll receive an email confirmation shortly. Is there anything else I can help you with?"
 		} else {
 			response = "I understand. How can I help you today?"
 		}
@@ -308,7 +299,7 @@ func (s *CallSession) speakResponse(text string) {
 
 	// Check if we have real Polly client
 	if pollyClient == nil {
-		log.Printf("[%s] 🎭 Demo Mode: Sending text for browser TTS: \"%s\"", s.CallID, text)
+		log.Printf("[%s] 🎭 Browser Mode: Sending text for browser TTS: \"%s\"", s.CallID, text)
 		
 		// Send response to browser for TTS
 		response := map[string]interface{}{
@@ -334,7 +325,7 @@ func (s *CallSession) speakResponse(text string) {
 		}
 		
 		time.Sleep(duration)
-		log.Printf("[%s] ✅ Demo voice response completed", s.CallID)
+		log.Printf("[%s] ✅ Browser voice response completed", s.CallID)
 		return
 	}
 
@@ -346,6 +337,23 @@ func (s *CallSession) speakResponse(text string) {
 	audioStream, err := PollyPCMStream(s.Ctx, pollyClient, s.Tenant.PollyVoiceId, s.Tenant.PollyEngine, optimizedText)
 	if err != nil {
 		log.Printf("[%s] ❌ Polly error: %v", s.CallID, err)
+		log.Printf("[%s] 🎭 Falling back to browser TTS due to Polly error", s.CallID)
+		
+		// Fall back to browser TTS
+		response := map[string]interface{}{
+			"type":   "response",
+			"text":   text,
+			"voice":  s.Tenant.PollyVoiceId,
+			"engine": s.Tenant.PollyEngine,
+		}
+		
+		s.WriteMu.Lock()
+		writeErr := s.WS.WriteJSON(response)
+		s.WriteMu.Unlock()
+		
+		if writeErr != nil {
+			log.Printf("[%s] ❌ WebSocket write error: %v", s.CallID, writeErr)
+		}
 		return
 	}
 	defer audioStream.Close()

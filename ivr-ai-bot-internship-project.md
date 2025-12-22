@@ -38,7 +38,7 @@
 
 ## 1. Project Goal
 
-Build a production-quality AI voice receptionist demonstrating AWS-native AI orchestration:
+Build a production-quality AI voice receptionist using AWS-native AI orchestration:
 
 ### 1.1 Core Capabilities
 

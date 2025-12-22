@@ -201,9 +201,14 @@
                             } else if (data.type === 'response') {
                                 log(data.text);
                                 speakText(data.text);
+                            } else if (data.type === 'greeting') {
+                                log(data.text);
+                                speakText(data.text);
                             }
                         } catch (e) {
-                            console.log('Non-JSON message:', event.data);
+                            // Handle plain text responses
+                            log(event.data);
+                            speakText(event.data);
                         }
                     }
                 };

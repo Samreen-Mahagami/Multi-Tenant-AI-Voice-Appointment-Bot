@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.24
 	github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime v1.20.0
 	github.com/aws/aws-sdk-go-v2/service/polly v1.28.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.71.0
 	github.com/aws/aws-sdk-go-v2/service/transcribestreaming v1.26.0
 	github.com/gorilla/websocket v1.5.3
 )
