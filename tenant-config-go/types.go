@@ -121,14 +121,30 @@ func (ts *TenantService) handleResolveTenant(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Get tenant name from DID mapping
+	tenantName, exists := ts.didToName[did]
+	if !exists {
+		http.Error(w, fmt.Sprintf("tenant not found for DID: %s", did), http.StatusNotFound)
+		return
+	}
+
 	tenant, err := ts.GetTenantByDID(did)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
+	// Create response with tenant name included
+	response := struct {
+		TenantName string `json:"tenant_name"`
+		*Tenant
+	}{
+		TenantName: tenantName,
+		Tenant:     tenant,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tenant)
+	json.NewEncoder(w).Encode(response)
 }
 
 // handleGetTenant is implemented in main.go for HTTP server

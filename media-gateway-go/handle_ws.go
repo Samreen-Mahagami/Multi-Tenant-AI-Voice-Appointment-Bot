@@ -411,6 +411,7 @@ func resolveTenant(ctx context.Context, did string) (*TenantInfo, error) {
 	}
 
 	var result struct {
+		TenantName   string `json:"tenant_name"`
 		DisplayName  string `json:"display_name"`
 		Greeting     string `json:"greeting"`
 		PollyVoiceId string `json:"polly_voice_id"`
@@ -422,7 +423,7 @@ func resolveTenant(ctx context.Context, did string) (*TenantInfo, error) {
 	}
 
 	return &TenantInfo{
-		TenantId:     did,
+		TenantId:     result.TenantName,  // Use actual tenant name instead of DID
 		DisplayName:  result.DisplayName,
 		PollyVoiceId: result.PollyVoiceId,
 		PollyEngine:  result.PollyEngine,
